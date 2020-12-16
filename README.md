@@ -261,6 +261,35 @@ EXAMPLE
   tempo alias:list
 ```
 
+### `tempo report`
+[or rep], print a report about the users logged times
+
+```
+USAGE                                                                                                           
+  $ tempo report                                                                                                
+                                                                                                                
+OPTIONS                                                                                                         
+  -e, --end=end          end date (yyyy-MM-dd format) defaulted to today                                        
+  -h, --help             show CLI help                                                                          
+  -p, --project=project  project key to which the report should be limited, eg KEY includes KEY-1 but not KEZ-1 
+  -s, --start=start      start date (yyyy-MM-dd format) defaulted to first recorded worklog                     
+  -v, --verbose          verbose output with logged time per issue                                              
+  --debug                                                                                                       
+                                                                                                                
+ALIASES                                                                                                         
+  $ tempo rep                                                                                                   
+                                                                                                                
+EXAMPLES                                                                                                        
+  tempo report                                                                                                  
+  tempo rep -v                                                                                                  
+  tempo rep --project=PRJ                                                                                       
+  tempo rep -p PRJ                                                                                              
+  tempo rep --start=2020-01-01                                                                                  
+  tempo rep --start=2020-01-01 --end=2020-01-31                                                                 
+  tempo rep -s 2020-01-01                                                                                       
+  tempo rep -v -p TST -s 2020-01-01 -e 2020-12-31                                                               
+```
+
 ### `tempo tracker:start ISSUE_KEY_OR_ALIAS`
 
 [or start], start a new tracker
