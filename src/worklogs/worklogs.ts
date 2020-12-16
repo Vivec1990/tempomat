@@ -8,8 +8,9 @@ import * as schedule from './schedule'
 import { appName } from '../appName'
 import authenticator from '../config/authenticator'
 import aliases from '../config/aliases'
+import _ from 'lodash'
 
-const DATE_FORMAT = 'yyyy-MM-dd'
+export const DATE_FORMAT = 'yyyy-MM-dd'
 const START_TIME_FORMAT = 'HH:mm:ss'
 const YESTERDAY_LITERALS = ['y', 'yesterday']
 const TODAY_LITERALS = ['t', 'today']
@@ -37,6 +38,19 @@ export type UserWorklogs = {
     worklogs: Worklog[]
     date: Date,
     scheduleDetails: ScheduleDetails
+}
+
+export type ReportLine = {
+    key: string,
+    time: number
+}
+
+export type UserTotals = {
+    total: number,
+    required: number,
+    firstWorklogDate: string,
+    timesPerIssue: ReportLine[],
+    timesPerProject: ReportLine[]
 }
 
 export default {
@@ -94,8 +108,69 @@ export default {
             formattedDate,
             credentials.accountId
         )
-        return { worklogs, date, scheduleDetails }
+        return {worklogs, date, scheduleDetails}
+    },
+
+    async getAllLoggedTime(startDate = new Date(0), endDate = new Date(), project: string | undefined = undefined): Promise<UserTotals> {
+        await checkToken()
+        const dateTo = format(endDate, DATE_FORMAT)
+        const dateFrom = format(startDate, DATE_FORMAT)
+
+        const worklogsResponse = await api.getWorklogs({fromDate: dateFrom, toDate: dateTo})
+        const relevantWorklogs = worklogsResponse.results.filter(value => !project || value.issue.key.startsWith(project))
+
+        const timesPerProject = getTimesGroupedByProject(relevantWorklogs);
+
+        const timesPerIssue = getTimesGroupedByIssue(relevantWorklogs, timesPerProject);
+
+        const total = worklogsResponse.results.map(value => value.timeSpentSeconds)
+            .reduce((previousValue, currentValue) => previousValue + currentValue);
+
+        const firstWorklogDate = worklogsResponse.results[0].startDate
+        const scheduleResponse = await api.getUserSchedule({fromDate: firstWorklogDate, toDate: dateTo})
+
+        const required = _.sumBy(scheduleResponse.results, (r) => r.requiredSeconds)
+        return {total, required, firstWorklogDate, timesPerIssue, timesPerProject}
     }
+}
+
+function getTimesGroupedByProject(relevantWorklogs: WorklogEntity[]) {
+    const timesPerProject = getTimesGroupedBy(relevantWorklogs, (w) => getProjectKey(w.issue.key))
+    timesPerProject.sort((a, b) => b.time - a.time || getProjectKey(a.key).localeCompare(getProjectKey(b.key)))
+    return timesPerProject;
+}
+
+function getTimesGroupedBy(relevantWorklogs: WorklogEntity[], groupFn: (w: WorklogEntity) => string) {
+    const timesPerIssue = new Array<ReportLine>();
+    const timeByIssue = new Map<string, number>()
+    relevantWorklogs.forEach(value => {
+        const issueKey = groupFn(value)
+        const time = timeByIssue.get(issueKey) || 0
+        const timeToAdd = value.timeSpentSeconds
+        timeByIssue.set(issueKey, time + timeToAdd)
+    })
+    for (let [key, time] of timeByIssue) {
+        timesPerIssue.push({key, time})
+    }
+    return timesPerIssue;
+}
+
+function findIndexByKey(timesPerProject: ReportLine[], a: ReportLine) {
+    return timesPerProject.findIndex((value => value.key === getProjectKey(a.key)));
+}
+
+function getTimesGroupedByIssue(relevantWorklogs: WorklogEntity[], timesPerProject: ReportLine[]) {
+    const timesPerIssue = getTimesGroupedBy(relevantWorklogs, (w) => w.issue.key);
+    timesPerIssue.sort((a, b) => {
+            return findIndexByKey(timesPerProject, a) - findIndexByKey(timesPerProject, b)
+                || b.time - a.time
+        }
+    )
+    return timesPerIssue;
+}
+
+function getProjectKey(issueKey: string): string {
+    return issueKey.slice(0, issueKey.indexOf('-'))
 }
 
 function remainingEstimateSeconds(referenceDate: Date, remainingEstimate?: string): number | undefined {

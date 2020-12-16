@@ -1,7 +1,8 @@
 import authenticator from './config/authenticator'
-import worklogs, { AddWorklogInput } from './worklogs/worklogs'
+import worklogs, { AddWorklogInput, DATE_FORMAT} from './worklogs/worklogs'
 import prompts from './config/prompts'
 import * as worklogsTable from './worklogs/worklogsTable'
+import * as reportTable from './worklogs/reportTable'
 import chalk from 'chalk'
 import { appName } from './appName'
 import { trimIndent } from './trimIndent'
@@ -16,7 +17,7 @@ import trackers, {
 } from './trackers/trackers'
 import { Tracker } from './config/trackerStore'
 import * as trackersTable from './trackers/trackersTable'
-import { lightFormat as fnsLightFormat, differenceInMinutes } from 'date-fns'
+import {lightFormat as fnsLightFormat, differenceInMinutes, parse as fnsParse, format} from 'date-fns'
 
 export default {
 
@@ -69,6 +70,24 @@ export default {
             const userWorklogs = await worklogs.getUserWorklogs(when)
             cli.action.stop('Done.')
             const table = await worklogsTable.render(userWorklogs, verbose)
+            console.log(table.toString())
+        })
+    },
+
+    async totalLoggedTime(verbose = false, startDate: string | undefined, endDate: string | undefined, project: string | undefined) {
+        execute( async () => {
+            const parsedStartDate = startDate ? fnsParse(startDate, DATE_FORMAT, new Date(0)) : new Date(0);
+            const parsedEndDate = endDate ? fnsParse(endDate, DATE_FORMAT, new Date()) : new Date();
+            const formattedStart = format(parsedStartDate, DATE_FORMAT);
+            const formattedEnd = format(parsedEndDate, DATE_FORMAT);
+
+            cli.action.start('Generating report')
+            const totalTime = await worklogs.getAllLoggedTime(parsedStartDate, parsedEndDate, project)
+            cli.action.stop('Done.')
+
+            const startOfReport = startDate ? formattedStart : totalTime.firstWorklogDate
+
+            const table = await reportTable.render(startOfReport, formattedEnd, totalTime.total, totalTime.required, totalTime.timesPerIssue, totalTime.timesPerProject, verbose)
             console.log(table.toString())
         })
     },
