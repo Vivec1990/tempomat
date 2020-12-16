@@ -4,7 +4,7 @@ import globalFlags from '../globalFlags'
 import tempo from "../tempo";
 
 export default class Report extends Command {
-    static description = '[or rep], print a report about the users logged times)'
+    static description = '[or rep], print a report about the users logged times'
 
     static examples = [
         `${appName} report`,
@@ -28,11 +28,11 @@ export default class Report extends Command {
         }),
         start: flags.string({
             char: 's',
-            description: 'start date (yyyy-MM-dd format)'
+            description: 'start date (yyyy-MM-dd format) defaulted to first recorded worklog'
         }),
         end: flags.string({
             char: 'e',
-            description: 'end date (yyyy-MM-dd format)'
+            description: 'end date (yyyy-MM-dd format) defaulted to today'
         }),
         project: flags.string({
             char: 'p',
