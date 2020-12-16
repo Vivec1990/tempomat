@@ -3,10 +3,6 @@ import chalk from "chalk";
 import issueKeyExtended, {AliasesPosition} from "../issueKeyExtended";
 import {ReportLine} from "./worklogs";
 
-function convertToHours(time: number): string {
-    return time / 3600 + 'h'
-}
-
 export async function render(reportStartDate: string, reportEndDate: string, totalTime: number, totalRequired: number, timesPerIssue: Array<ReportLine>, timesPerProject: Array<ReportLine>, verbose = false) {
     const totalHeaders = [
         {content: chalk.bold.greenBright('report timespan'), hAlign: 'left'},
@@ -24,32 +20,7 @@ export async function render(reportStartDate: string, reportEndDate: string, tot
         {content: chalk.bold.greenBright('projects'), hAlign: 'left'},
         {content: chalk.bold.greenBright('logged hours'), hAlign: 'right'},
     ].map((r => r as Cell));
-    const projectTotals = []
-    for (let line of timesPerProject) {
-        const tableContent = {
-            id: {colSpan: 1, content: chalk.yellow('Project: ' + line.key), hAlign: 'left'},
-            interval: {colSpan: 1, content: convertToHours(line.time), hAlign: 'right'}
-        }
-        projectTotals.push(Object.values(tableContent));
-        if (verbose) {
-            timesPerIssue.filter(entry => entry.key.startsWith(line.key)).forEach(issueLine => {
-                const issueContent = {
-                    id: {colSpan: 1, content: chalk.yellow(issueLine.key), hAlign: 'right'},
-                    interval: {colSpan: 1, content: convertToHours(issueLine.time), hAlign: 'right'}
-                }
-                projectTotals.push(Object.values(issueContent));
-            })
-        }
-    }
-    const content = [];
-    for (let line of timesPerIssue) {
-        const issueKey = await issueKeyExtended(line.key, AliasesPosition.Left)
-        const tableContent = {
-            id: {colSpan: 1, content: chalk.yellow(issueKey), hAlign: 'right'},
-            interval: {colSpan: 1, content: convertToHours(line.time), hAlign: 'right'}
-        }
-        content.push(Object.values(tableContent));
-    }
+    const projectTotals = await renderProjectTimes(timesPerProject, verbose, timesPerIssue);
 
     const table = new Table() as HorizontalTable
     table.push(
@@ -59,4 +30,30 @@ export async function render(reportStartDate: string, reportEndDate: string, tot
         ...projectTotals.map((r) => r as Cell[])
     )
     return table
+}
+
+function convertToHours(time: number): string {
+    return time / 3600 + 'h'
+}
+
+async function renderProjectTimes(timesPerProject: Array<ReportLine>, verbose: boolean, timesPerIssue: Array<ReportLine>) {
+    const projectTotals = []
+    for (let line of timesPerProject) {
+        const tableContent = {
+            id: {colSpan: 1, content: chalk.yellow('Project: ' + line.key), hAlign: 'left'},
+            interval: {colSpan: 1, content: convertToHours(line.time), hAlign: 'right'}
+        }
+        projectTotals.push(Object.values(tableContent));
+        if (verbose) {
+            for (let issueLine of timesPerIssue.filter(entry => entry.key.startsWith(line.key))) {
+                const issueKey = await issueKeyExtended(issueLine.key, AliasesPosition.Left);
+                const issueContent = {
+                    id: {colSpan: 1, content: chalk.yellow(issueKey  + ' '.repeat(10 - issueLine.key.length)), hAlign: 'right'},
+                    interval: {colSpan: 1, content: convertToHours(issueLine.time), hAlign: 'right'}
+                }
+                projectTotals.push(Object.values(issueContent));
+            }
+        }
+    }
+    return projectTotals;
 }
