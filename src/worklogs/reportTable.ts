@@ -6,13 +6,15 @@ import {ReportLine} from "./worklogs";
 export async function render(reportStartDate: string, reportEndDate: string, totalTime: number, totalRequired: number, timesPerIssue: Array<ReportLine>, timesPerProject: Array<ReportLine>, verbose = false) {
     const totalHeaders = [
         {content: chalk.bold.greenBright('report timespan'), hAlign: 'left'},
-        {content: chalk.bold.greenBright('total logged hours'), hAlign: 'right'},
+        {content: chalk.bold.greenBright('total logged / required (diff)'), hAlign: 'right'},
     ].map((r => r as Cell));
+    const diff = totalTime - totalRequired;
+    const formattedDiff = (diff>0?'+':'') + convertToHours(diff)
     const totals = Object.values({
         id: {colSpan: 1, content: chalk.yellow(reportStartDate + ' to ' + reportEndDate), hAlign: 'right'},
         interval: {
             colSpan: 1,
-            content: convertToHours(totalTime) + '/' + convertToHours(totalRequired),
+            content: `${convertToHours(totalTime)} / ${convertToHours(totalRequired)} (${formattedDiff})`,
             hAlign: 'right'
         }
     }).map((r) => r as Cell)
@@ -33,7 +35,7 @@ export async function render(reportStartDate: string, reportEndDate: string, tot
 }
 
 function convertToHours(time: number): string {
-    return time / 3600 + 'h'
+    return (time / 3600).toFixed(2) + 'h'
 }
 
 async function renderProjectTimes(timesPerProject: Array<ReportLine>, verbose: boolean, timesPerIssue: Array<ReportLine>) {
